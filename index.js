@@ -3,9 +3,10 @@ var stream = require('stream'),
 module.exports = WARCStream;
 
 var STATE = {
-  PROTOCOL : 1,
-  HEADERS  : 2,
-  CONTENT  : 3
+  PROTOCOL  : 1,
+  HEADERS   : 2,
+  CONTENT   : 3,
+  SEPARATOR : 4
 };
 
 var headerRegex = /^([^\:]+)\: ([^$]+)$/;
@@ -27,6 +28,7 @@ function WARCStream(opts) {
   this.state = STATE.PROTOCOL;
   this.data = new Buffer(0);
   this.content = new Buffer(0);
+  this.separator = new Buffer('\r\n\r\n');
   this.offset = 0;
   this.protocol = null;
   this.headers = {};
@@ -67,14 +69,20 @@ WARCStream.prototype._transform = function (chunk, enc, cb) {
       case STATE.CONTENT:
         result = this.parseContent();
         if (result) {
-          this.offset += 4;
-          this.state = STATE.PROTOCOL;
+          this.state = STATE.SEPARATOR;
           this.emit('content', this.content);
           this.push({
             protocol: this.protocol,
             headers: this.headers,
             content: this.content
           });
+        }
+        break;
+
+      case STATE.SEPARATOR:
+        result = this.parseSeparator();
+        if (result) {
+          this.state = STATE.PROTOCOL;
         }
         break;
 
@@ -98,7 +106,7 @@ WARCStream.prototype._flush = function (cb) {
 WARCStream.prototype.parseProtocol = function () {
   var idx = firstMatch(this.matcher, this.data, this.offset);
 
-  if (idx <= this.data.length) {
+  if (idx !== false && idx <= this.data.length) {
     var protocol = this.data.slice(this.offset, idx);
     this.offset = idx + this.matcher.length;
     this.protocol = protocol.toString();
@@ -117,7 +125,6 @@ WARCStream.prototype.parseHeaders = function () {
 };
 
 WARCStream.prototype.parseHeader = function () {
-  var haystack = this.data.slice(this.offset);
   var idx = firstMatch(this.matcher, this.data, this.offset);
 
   if (idx !== false && idx < this.data.length) {
@@ -147,6 +154,20 @@ WARCStream.prototype.parseContent = function () {
     this.content, this.data.slice(this.offset, this.offset + appendLength)]);
   this.offset += appendLength;
   return this.contentLength === this.content.length;
+};
+
+WARCStream.prototype.parseSeparator = function () {
+  var idx = firstMatch(this.separator, this.data, this.offset);
+
+  if (idx !== false && idx < this.data.length) {
+    var separator = this.data.slice(this.offset, idx);
+    this.offset = idx + this.separator.length;
+    if (separator.length === 0) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 function firstMatch(matcher, buf, offset) {
