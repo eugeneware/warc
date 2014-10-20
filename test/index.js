@@ -29,7 +29,7 @@ it('should be able to parse the protocol', function(t) {
 });
 
 it('should be able to parse the headers', function(t) {
-  t.plan(1);
+  t.plan(9);
   var f = fixture(watFile);
   var w = new WARCStream();
   var first = true;
@@ -46,12 +46,14 @@ it('should be able to parse the headers', function(t) {
           'Content-Length': '108' };
         t.deepEquals(headers, expected);
         first = false;
+      } else {
+        t.ok(Object.keys(headers).length);
       }
     })
 });
 
 it('should be able to parse the data packet', function(t) {
-  t.plan(1);
+  t.plan(9);
   var f = fixture(watFile);
   var w = new WARCStream();
   var first = true;
@@ -67,6 +69,8 @@ it('should be able to parse the data packet', function(t) {
         ].join('\r\n');
         t.equals(expected, content.toString());
         first = false;
+      } else {
+        t.ok(content);
       }
     })
 });
