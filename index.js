@@ -4,8 +4,11 @@ module.exports = WARCStream;
 
 var STATE = {
   PROTOCOL : 1,
-  HEADERS  : 2
+  HEADERS  : 2,
+  DATA     : 3
 };
+
+var headerRegex = /^([^\:]+)\: ([^$]+)$/;
 
 function WARCStream(opts) {
   if (!(this instanceof WARCStream)) {
@@ -26,20 +29,28 @@ util.inherits(WARCStream, stream.Transform);
 
 WARCStream.prototype._transform = function (chunk, enc, cb) {
   var result;
+
+  // append chunk
+  this.data = Buffer.concat([this.data, chunk]);
+
   do {
     switch (this.state) {
       case STATE.PROTOCOL:
         this.protocol = null;
-        this.data = Buffer.concat([this.data, chunk]);
         result = this.parseProtocol();
         if (result) {
           this.state = STATE.HEADERS;
+          this.headers = {};
           this.emit('protocol', this.protocol);
         }
         break;
 
-      case STATE.PROTOCOL:
+      case STATE.HEADERS:
         result = false;
+        result = this.parseHeaders();
+        if (result) {
+          this.emit('headers', this.headers);
+        }
         break;
 
       default:
@@ -47,6 +58,10 @@ WARCStream.prototype._transform = function (chunk, enc, cb) {
         break;
     }
   } while (result);
+
+  // store only the part we haven't processed yet
+  this.data = this.data.slice(this.offset);
+  this.offset = 0;
 
   cb();
 };
@@ -59,11 +74,43 @@ WARCStream.prototype.parseProtocol = function () {
   var idx = firstMatch(this.matcher, this.data, this.offset);
 
   if (idx <= this.data.length) {
-    var protocol = this.data.slice(this.offset, idx - this.offset);
-    this.offset += idx + this.matcher.length;
+    var protocol = this.data.slice(this.offset, idx);
+    this.offset = idx + this.matcher.length;
     this.protocol = protocol.toString();
     return true;
   } else {
+    this.offset = idx;
+    return false;
+  }
+};
+
+WARCStream.prototype.parseHeaders = function () {
+  var result;
+  do {
+    result = this.parseHeader();
+  } while (result);
+  return !result && this.state === STATE.DATA;
+};
+
+WARCStream.prototype.parseHeader = function () {
+  var idx = firstMatch(this.matcher, this.data, this.offset);
+
+  if (idx <= this.data.length) {
+    var header= this.data.slice(this.offset, idx);
+    this.offset = idx + this.matcher.length;
+
+    if (header.length === 0) {
+      this.state = STATE.DATA;
+      return false;
+    }
+
+    var m = headerRegex.exec(header.toString());
+    if (m) {
+      this.headers[m[1]] = m[2];
+    }
+    return true;
+  } else {
+    console.log('header not found');
     this.offset = idx;
     return false;
   }

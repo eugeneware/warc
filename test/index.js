@@ -26,3 +26,21 @@ it('should be able to parse the protocol', function(t) {
       t.end();
     })
 });
+
+it('should be able to parse the headers', function(t) {
+  var f = fixture(watFile);
+  var w = new WARCStream();
+  f
+    .pipe(w)
+    .on('headers', function (headers) {
+      var expected = {
+        'WARC-Type': 'warcinfo',
+        'WARC-Date': '2014-09-09T10:14:59Z',
+        'WARC-Filename': 'CC-MAIN-20140820021334-00006-ip-10-180-136-8.ec2.internal.warc.gz',
+        'WARC-Record-ID': '<urn:uuid:e801b755-b208-4424-8233-b76f468155c6>',
+        'Content-Type': 'application/warc-fields',
+        'Content-Length': '108' };
+      t.deepEquals(headers, expected);
+      t.end();
+    })
+});
