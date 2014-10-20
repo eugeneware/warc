@@ -21,9 +21,10 @@
   "bugs": {
     "url": "https://github.com/eugeneware/warc/issues"
   },
-  "dependencies": {},
+  "dependencies": {
+  },
   "devDependencies": {
-    "tape": "~2.3.2",
+    "tape": "^3.0.1",
     "through2": "^0.6.3"
   }
 }

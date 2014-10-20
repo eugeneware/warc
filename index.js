@@ -5,7 +5,7 @@ module.exports = WARCStream;
 var STATE = {
   PROTOCOL : 1,
   HEADERS  : 2,
-  DATA     : 3
+  CONTENT  : 3
 };
 
 var headerRegex = /^([^\:]+)\: ([^$]+)$/;
@@ -19,9 +19,11 @@ function WARCStream(opts) {
 
   this.state = STATE.PROTOCOL;
   this.data = new Buffer(0);
+  this.content = new Buffer(0);
   this.offset = 0;
   this.protocol = null;
   this.headers = {};
+  this.contentLength = 0;
   this.matcher = new Buffer('\r\n');
 }
 
@@ -49,7 +51,18 @@ WARCStream.prototype._transform = function (chunk, enc, cb) {
         result = false;
         result = this.parseHeaders();
         if (result) {
+          this.contentLength = parseInt(this.headers['Content-Length']);
+          this.content = new Buffer(0);
           this.emit('headers', this.headers);
+        }
+        break;
+
+      case STATE.CONTENT:
+        result = this.parseContent();
+        if (result) {
+          this.offset += 4;
+          this.state = STATE.PROTOCOL;
+          this.emit('content', this.content);
         }
         break;
 
@@ -57,7 +70,7 @@ WARCStream.prototype._transform = function (chunk, enc, cb) {
         result = false;
         break;
     }
-  } while (result);
+  } while (result && this.offset < this.data.length);
 
   // store only the part we haven't processed yet
   this.data = this.data.slice(this.offset);
@@ -89,7 +102,7 @@ WARCStream.prototype.parseHeaders = function () {
   do {
     result = this.parseHeader();
   } while (result);
-  return !result && this.state === STATE.DATA;
+  return !result && this.state === STATE.CONTENT;
 };
 
 WARCStream.prototype.parseHeader = function () {
@@ -100,7 +113,7 @@ WARCStream.prototype.parseHeader = function () {
     this.offset = idx + this.matcher.length;
 
     if (header.length === 0) {
-      this.state = STATE.DATA;
+      this.state = STATE.CONTENT;
       return false;
     }
 
@@ -110,10 +123,19 @@ WARCStream.prototype.parseHeader = function () {
     }
     return true;
   } else {
-    console.log('header not found');
     this.offset = idx;
     return false;
   }
+};
+
+WARCStream.prototype.parseContent = function () {
+  var appendLength = Math.min(
+    this.data.length - this.offset,
+    this.contentLength - this.content.length);
+  this.content = Buffer.concat([
+    this.content, this.data.slice(this.offset, this.offset + appendLength)]);
+  this.offset += appendLength;
+  return this.contentLength === this.content.length;
 };
 
 function firstMatch(matcher, buf, offset) {
