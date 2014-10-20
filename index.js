@@ -104,7 +104,6 @@ WARCStream.prototype.parseProtocol = function () {
     this.protocol = protocol.toString();
     return true;
   } else {
-    this.offset = idx;
     return false;
   }
 };
@@ -118,9 +117,10 @@ WARCStream.prototype.parseHeaders = function () {
 };
 
 WARCStream.prototype.parseHeader = function () {
+  var haystack = this.data.slice(this.offset);
   var idx = firstMatch(this.matcher, this.data, this.offset);
 
-  if (idx <= this.data.length) {
+  if (idx !== false && idx < this.data.length) {
     var header= this.data.slice(this.offset, idx);
     this.offset = idx + this.matcher.length;
 
@@ -135,7 +135,6 @@ WARCStream.prototype.parseHeader = function () {
     }
     return true;
   } else {
-    this.offset = idx;
     return false;
   }
 };
