@@ -79,7 +79,6 @@ it('should be able to send data events', function(t) {
   t.plan(10);
   var f = fixture(watFile);
   var w = new WARCStream();
-  var first = true;
   var results = [];
   f
     .pipe(w)
@@ -90,4 +89,22 @@ it('should be able to send data events', function(t) {
     .on('end', function () {
       t.equals(results.length, 9);
     });
+});
+
+it('should be able to worth with streams', function(t) {
+  t.plan(10);
+  var f = fixture(watFile);
+  var w = new WARCStream();
+  var results = [];
+  f
+    .pipe(w)
+    .pipe(through2.obj(
+      function (data, enc, cb) {
+        results.push(data);
+        t.ok(data);
+        cb();
+      },
+      function () {
+        t.equals(results.length, 9);
+      }));
 });
