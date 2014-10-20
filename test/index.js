@@ -151,7 +151,7 @@ function simpleHttpParser() {
   };
 }
 
-it('should be able to worth with WARC files', function(t) {
+it('should be able to work with WARC files', function(t) {
   t.plan(6);
   var f = fixture(warcFile);
   var w = new WARCStream();
