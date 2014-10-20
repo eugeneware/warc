@@ -5,6 +5,7 @@ var it = require('tape'),
     WARCStream = require('..');
 
 var watFile = 'CC-MAIN-20140820021334-00006-ip-10-180-136-8.ec2.internal.warc.wat';
+var wetFile = 'CC-MAIN-20140820021334-00006-ip-10-180-136-8.ec2.internal.warc.wet';
 function fixture(file) {
   return fs.createReadStream(path.join(__dirname, 'fixtures', file));
 }
@@ -106,5 +107,21 @@ it('should be able to worth with streams', function(t) {
       },
       function () {
         t.equals(results.length, 9);
+      }));
+});
+
+it('should be able to worth with WET files', function(t) {
+  t.plan(3);
+  var f = fixture(wetFile);
+  var w = new WARCStream();
+  var results = [];
+  f
+    .pipe(w)
+    .pipe(through2.obj(
+      function (data, enc, cb) {
+        if (data.headers['Content-Type'] === 'text/plain') {
+          t.ok(data.content.length);
+        }
+        cb();
       }));
 });
