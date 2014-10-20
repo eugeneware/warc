@@ -15,6 +15,13 @@ function WARCStream(opts) {
     return new WARCStream();
   }
 
+  if (typeof opts === 'undefined') {
+    opts = {};
+  }
+  if (typeof opts.objectMode === 'undefined') {
+    opts.objectMode = true;
+  }
+
   stream.Transform.call(this, opts);
 
   this.state = STATE.PROTOCOL;
@@ -63,6 +70,11 @@ WARCStream.prototype._transform = function (chunk, enc, cb) {
           this.offset += 4;
           this.state = STATE.PROTOCOL;
           this.emit('content', this.content);
+          this.push({
+            protocol: this.protocol,
+            headers: this.headers,
+            content: this.content
+          });
         }
         break;
 

@@ -52,7 +52,7 @@ it('should be able to parse the headers', function(t) {
     })
 });
 
-it('should be able to parse the data packet', function(t) {
+it('should be able to parse the content', function(t) {
   t.plan(9);
   var f = fixture(watFile);
   var w = new WARCStream();
@@ -73,4 +73,21 @@ it('should be able to parse the data packet', function(t) {
         t.ok(content);
       }
     })
+});
+
+it('should be able to send data events', function(t) {
+  t.plan(10);
+  var f = fixture(watFile);
+  var w = new WARCStream();
+  var first = true;
+  var results = [];
+  f
+    .pipe(w)
+    .on('data', function (data) {
+      results.push(data);
+      t.ok(data);
+    })
+    .on('end', function () {
+      t.equals(results.length, 9);
+    });
 });
